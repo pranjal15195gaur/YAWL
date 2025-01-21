@@ -59,8 +59,10 @@ def lex(s: str) -> Iterator[Token]:
                 case 'add' | 'sub' | 'mul' | 'div' | 'lt' | 'lte' | 'gt' | 'gte' | 'eq' |'neq' |'neg' |'exp':
                     yield OperatorToken(t)
         elif s[i] == '(':
+            i = i + 1
             yield ParenToken('(')
         elif s[i] == ')':
+            i = i + 1
             yield ParenToken(')')
 
 

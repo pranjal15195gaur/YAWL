@@ -1,6 +1,6 @@
 import sys
 sys.path.insert(1, '"D:/Sem-2/Compilers"')
-from Top import BinOp, UnOp, Float, Int, If, AST
+from Top import BinOp, UnOp, Float, Int, If, Parentheses, AST
 from Lexer import IntToken, FloatToken, OperatorToken, KeywordToken, ParenToken, Token, lex
 
 class ParseError(Exception):
@@ -15,6 +15,7 @@ def parse(s: str) -> AST:
             next(t)
             return
         raise ParseError
+
 
     def parse_if():
         match t.peek(None):
@@ -100,11 +101,13 @@ def parse(s: str) -> AST:
             case FloatToken(v):
                 next(t)
                 return Float(v)
-            # case ParenToken('('):
-            #     next(t)
-            #     expr = parse_if()
-            #     expect(ParenToken(')'))
-            #     return expr
+            case KeywordToken('if'):
+                return parse_if
+            case ParenToken('('):
+                next(t)
+                expr = parse_cmp()
+                expect(ParenToken(')'))
+                return Parentheses(expr)
             case OperatorToken('neg'):
                 next(t)
                 val = parse_atom()
