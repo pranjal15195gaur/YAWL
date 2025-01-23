@@ -24,6 +24,11 @@ class Int(AST):
     val: str
 
 
+@dataclass
+class Parentheses(AST):
+    val: AST
+
+
 
 @dataclass
 class If(AST):
@@ -49,6 +54,7 @@ def e(tree: AST) -> int:
         case BinOp("gte", l, r): return e(l) >= e(r)
         case BinOp("eq", l, r): return e(l) == e(r)
         case BinOp("neq", l, r): return e(l) != e(r)
+        case Parentheses(expp): return e(expp)
         case If(cond, then, elseif_branches, elsee):
             if e(cond): 
                 return e(then)
