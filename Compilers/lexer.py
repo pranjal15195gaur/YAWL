@@ -1,7 +1,6 @@
 from collections.abc import Iterator
 from dataclasses import dataclass
 
-
 class Token:
     pass
 
@@ -25,28 +24,26 @@ class KeywordToken(Token):
 class ParenToken(Token):
     w: str
 
-
-
 def lex(s: str) -> Iterator[Token]:
     i = 0
     while True:
         while i < len(s) and s[i].isspace():
-            i = i + 1
+            i += 1
 
         if i == len(s):
             return
 
         if s[i].isdigit():
             t = s[i]
-            i = i + 1
+            i += 1
             isFloat = False
             isValid = True
-            while i < len(s) and (s[i].isdigit() or s[i]=='.'):
+            while i < len(s) and (s[i].isdigit() or s[i] == '.'):
                 if s[i] == '.':
                     if isFloat: isValid = False
                     isFloat = True
-                t = t + s[i]
-                i = i + 1
+                t += s[i]
+                i += 1
 
             if not isValid: raise ValueError('Invalid number token found :- {}'.format(t))
 
@@ -55,20 +52,23 @@ def lex(s: str) -> Iterator[Token]:
 
         elif s[i].isalpha():
             t = s[i]
-            i = i + 1
+            i += 1
             while i < len(s) and s[i].isalpha():
-                t = t + s[i]
-                i = i + 1
+                t += s[i]
+                i += 1
             match t:
                 case 'if' | 'else':
+                    if i < len(s) and s[i] == '{':
+                        raise ValueError("Condition missing after '{}' keyword".format(t))
                     yield KeywordToken(t)
+                case _: yield KeywordToken(t)
 
         elif s[i] == '(':
-            i = i + 1
+            i += 1
             yield ParenToken('(')
 
         elif s[i] == ')':
-            i = i + 1
+            i += 1
             yield ParenToken(')')
 
         elif s[i] == '{':
