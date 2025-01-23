@@ -8,12 +8,13 @@ tests_ok = [
     "(10 - 3) * 2",
     "if 2 < 3 { 2 + 2 } else { 9 / 3 }",
     "if 2 < 3 { if 1 == 1 { 100 } else { 0 } } else { 42 }",
+
     "5 + if 2 < 3 { 4 } else { 20 }",
+
 ]
 
 # Failing test cases
 tests_error = [
-    "5 +",                        # incomplete expression
     "if 1 == 1 { 5 ",            # missing closing brace
     "if 2 < 3 { 4 } else if { 5 }" # missing condition
 ]

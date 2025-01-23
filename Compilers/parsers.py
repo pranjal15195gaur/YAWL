@@ -14,36 +14,6 @@ def parse(s: str) -> AST:
             return
         raise ParseError
 
-
-    def parse_if():
-        # expect an "if"
-        next(t)  # consume KeywordToken("if")
-        cond = parse_cmp()
-        expect(OperatorToken('{'))
-        then_expr = parse_cmp()
-        expect(OperatorToken('}'))
-
-        elseif_branches = []
-        # handle chained "else if"
-        while True:
-            if t.peek(None) == KeywordToken("else"):
-                next(t)  # consume "else"
-                if t.peek(None) == KeywordToken("if"):
-                    next(t)  # consume "if"
-                    elseif_cond = parse_cmp()
-                    expect(OperatorToken('{'))
-                    elseif_then = parse_cmp()
-                    expect(OperatorToken('}'))
-                    elseif_branches.append((elseif_cond, elseif_then))
-                else:
-                    expect(OperatorToken('{'))
-                    else_expr = parse_cmp()
-                    expect(OperatorToken('}'))
-                    return If(cond, then_expr, elseif_branches, else_expr)
-            else:
-                return If(cond, then_expr, elseif_branches, None)
-
-
     def parse_cmp():
         l = parse_add_sub()
         match t.peek(None):
@@ -82,15 +52,64 @@ def parse(s: str) -> AST:
                     return ast
 
     def parse_exp():
-        l = parse_atom()
+        l = parse_if()
         match t.peek(None):
             case OperatorToken('**'):
                 next(t)
-                r = parse_exp()
+                r = parse_if()
                 return BinOp("**", l, r)
             case _:
                 return l
 
+    def parse_if():
+        if t.peek(None) != KeywordToken("if"):
+            return parse_atom()
+        next(t)  # consume KeywordToken("if")
+        cond = parse_cmp()
+        if cond is None:
+            raise ParseError("Missing condition after 'if'")
+        try:
+            expect(OperatorToken('{'))
+        except ParseError:
+            raise ParseError("Expected '{' after 'if' condition")
+        then_expr = parse_cmp()
+        try:
+            expect(OperatorToken('}'))
+        except ParseError:
+            raise ParseError("Missing closing '}' after 'if' block")
+
+        elseif_branches = []
+        while True:
+            if t.peek(None) == KeywordToken("else"):
+                next(t)  # consume "else"
+                if t.peek(None) == KeywordToken("if"):
+                    next(t)  # consume "if"
+                    elseif_cond = parse_cmp()
+                    if elseif_cond is None:
+                        raise ParseError("Missing condition after 'else if'")
+                    try:
+                        expect(OperatorToken('{'))
+                    except ParseError:
+                        raise ParseError("Expected '{' after 'else if' condition")
+                    elseif_then = parse_cmp()
+                    try:
+                        expect(OperatorToken('}'))
+                    except ParseError:
+                        raise ParseError("Missing closing '}' after 'else if' block")
+                    elseif_branches.append((elseif_cond, elseif_then))
+                else:
+                    try:
+                        expect(OperatorToken('{'))
+                    except ParseError:
+                        raise ParseError("Expected '{' after 'else'")
+                    else_expr = parse_cmp()
+                    try:
+                        expect(OperatorToken('}'))
+                    except ParseError:
+                        raise ParseError("Missing closing '}' after 'else' block")
+                    return If(cond, then_expr, elseif_branches, else_expr)
+            else:
+                return If(cond, then_expr, elseif_branches, None)
 
     def parse_atom():
         match t.peek(None):
@@ -106,6 +125,7 @@ def parse(s: str) -> AST:
                 expr = parse_cmp()
                 expect(ParenToken(')'))
                 return Parentheses(expr)
+
             case OperatorToken('-'):
                 next(t)
                 val = parse_atom()
@@ -113,4 +133,4 @@ def parse(s: str) -> AST:
             case KeywordToken("if"):
                 return parse_if()
 
-    return parse_if()
+    return parse_cmp()
