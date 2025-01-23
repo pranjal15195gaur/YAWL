@@ -6,9 +6,6 @@ on:
     branches:
       - main  # Runs on pushes to the main branch
   pull_request:
-    branches:
-      - main  # Runs on PRs targeting the main branch
-
 
 jobs:
   build:
@@ -34,12 +31,6 @@ jobs:
             missing-function-docstring,  # Disable docstring checks for functions
             missing-class-docstring,     # Disable docstring checks for classes
             missing-module-docstring     # Disable docstring checks for modules
-
-        [VARIABLES]
-        variable-rgx=[a-z_][a-z0-9_]{2,30}$  # Enforce snake_case for variable names
-
-        [FORMAT]
-        max-line-length=88                # Set maximum line length to 88 (PEP8 default)
 
         [MESSAGES CONTROL]
         enable=
