@@ -60,7 +60,7 @@ def lex(s: str) -> Iterator[Token]:
                 t = t + s[i]
                 i = i + 1
             match t:
-                case 'if' | 'then' | 'end' | 'else' | 'elseif':
+                case 'if' | 'else':
                     yield KeywordToken(t)
 
         elif s[i] == '(':
@@ -70,6 +70,14 @@ def lex(s: str) -> Iterator[Token]:
         elif s[i] == ')':
             i = i + 1
             yield ParenToken(')')
+
+        elif s[i] == '{':
+            i += 1
+            yield OperatorToken('{')
+
+        elif s[i] == '}':
+            i += 1
+            yield OperatorToken('}')
 
         elif s[i] in '+-*/<>=!':
             if s[i:i+2] in ['<=', '>=', '==', '!=', '**']:
