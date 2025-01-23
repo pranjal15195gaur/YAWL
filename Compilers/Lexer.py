@@ -39,14 +39,20 @@ def lex(s: str) -> Iterator[Token]:
         if s[i].isdigit():
             t = s[i]
             i = i + 1
-            flag = False
+            isFloat = False
+            isValid = True
             while i < len(s) and (s[i].isdigit() or s[i]=='.'):
-                if s[i] == '.': flag = not flag
+                if s[i] == '.':
+                    if isFloat: isValid = False
+                    isFloat = True
                 t = t + s[i]
                 i = i + 1
-            if flag: yield FloatToken(t)
+
+            if not isValid: raise ValueError('Invalid number token found :- {}'.format(t))
+
+            if isFloat: yield FloatToken(t)
             else: yield IntToken(t)
-        
+
         elif s[i].isalpha():
             t = s[i]
             i = i + 1
@@ -56,13 +62,21 @@ def lex(s: str) -> Iterator[Token]:
             match t:
                 case 'if' | 'then' | 'end' | 'else' | 'elseif':
                     yield KeywordToken(t)
-                case 'add' | 'sub' | 'mul' | 'div' | 'lt' | 'lte' | 'gt' | 'gte' | 'eq' |'neq' |'neg' |'exp':
-                    yield OperatorToken(t)
+
         elif s[i] == '(':
             i = i + 1
             yield ParenToken('(')
+
         elif s[i] == ')':
             i = i + 1
             yield ParenToken(')')
+
+        elif s[i] in '+-*/<>=!':
+            if s[i:i+2] in ['<=', '>=', '==', '!=', '**']:
+                yield OperatorToken(s[i:i+2])
+                i += 2
+            else:
+                yield OperatorToken(s[i])
+                i += 1
 
 
