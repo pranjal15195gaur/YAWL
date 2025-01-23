@@ -1,7 +1,5 @@
-import sys
-sys.path.insert(1, '"D:/Sem-2/Compilers"')
-from Top import BinOp, UnOp, Float, Int, If, Parentheses, AST
-from Lexer import IntToken, FloatToken, OperatorToken, KeywordToken, ParenToken, Token, lex
+from top import BinOp, UnOp, Float, Int, If, Parentheses, AST
+from lexer import IntToken, FloatToken, OperatorToken, KeywordToken, ParenToken, Token, lex
 
 class ParseError(Exception):
     pass
@@ -18,31 +16,32 @@ def parse(s: str) -> AST:
 
 
     def parse_if():
-        match t.peek(None):
-            case KeywordToken("if"):
-                next(t)
-                cond = parse_cmp()
-                expect(KeywordToken("then"))
-                then = parse_if()
+        # expect an "if"
+        next(t)  # consume KeywordToken("if")
+        cond = parse_cmp()
+        expect(OperatorToken('{'))
+        then_expr = parse_cmp()
+        expect(OperatorToken('}'))
 
-                elseif_branches = []
-                while t.peek(None) == KeywordToken("elseif"):
-                    next(t)
+        elseif_branches = []
+        # handle chained "else if"
+        while True:
+            if t.peek(None) == KeywordToken("else"):
+                next(t)  # consume "else"
+                if t.peek(None) == KeywordToken("if"):
+                    next(t)  # consume "if"
                     elseif_cond = parse_cmp()
-                    expect(KeywordToken("then"))
-                    elseif_then = parse_if()
+                    expect(OperatorToken('{'))
+                    elseif_then = parse_cmp()
+                    expect(OperatorToken('}'))
                     elseif_branches.append((elseif_cond, elseif_then))
-            
-                if t.peek(None) == KeywordToken("else"):
-                    next(t)
-                    elsee = parse_cmp()
                 else:
-                    elsee = None
-            
-                expect(KeywordToken("end"))
-                return If(cond, then, elseif_branches, elsee)
-            case _:
-                return parse_cmp()
+                    expect(OperatorToken('{'))
+                    else_expr = parse_cmp()
+                    expect(OperatorToken('}'))
+                    return If(cond, then_expr, elseif_branches, else_expr)
+            else:
+                return If(cond, then_expr, elseif_branches, None)
 
 
     def parse_cmp():
@@ -111,5 +110,7 @@ def parse(s: str) -> AST:
                 next(t)
                 val = parse_atom()
                 return UnOp('-', val)
+            case KeywordToken("if"):
+                return parse_if()
 
     return parse_if()
