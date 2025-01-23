@@ -48,7 +48,7 @@ def parse(s: str) -> AST:
     def parse_cmp():
         l = parse_add_sub()
         match t.peek(None):
-            case OperatorToken('lt') | OperatorToken('lte') | OperatorToken('gt') | OperatorToken('gte') | OperatorToken('eq') | OperatorToken('neq'):
+            case OperatorToken('<') | OperatorToken('<=') | OperatorToken('>') | OperatorToken('>=') | OperatorToken('==') | OperatorToken('!='):
                 op = t.peek(None).o
                 next(t)
                 r = parse_add_sub()
@@ -60,12 +60,12 @@ def parse(s: str) -> AST:
         ast = parse_mul_div()
         while True:
             match t.peek(None):
-                case OperatorToken('add'):
+                case OperatorToken('+'):
                     next(t)
-                    ast = BinOp('add', ast, parse_mul_div())
-                case OperatorToken('sub'):
+                    ast = BinOp('+', ast, parse_mul_div())
+                case OperatorToken('-'):
                     next(t)
-                    ast = BinOp('sub', ast, parse_mul_div())
+                    ast = BinOp('-', ast, parse_mul_div())
                 case _:
                     return ast
 
@@ -73,22 +73,22 @@ def parse(s: str) -> AST:
         ast = parse_exp()
         while True:
             match t.peek(None):
-                case OperatorToken('mul'):
+                case OperatorToken('*'):
                     next(t)
-                    ast = BinOp("mul", ast, parse_exp())
-                case OperatorToken('div'):
+                    ast = BinOp("*", ast, parse_exp())
+                case OperatorToken('/'):
                     next(t)
-                    ast = BinOp("div", ast, parse_exp())
+                    ast = BinOp("/", ast, parse_exp())
                 case _:
                     return ast
 
     def parse_exp():
         l = parse_atom()
         match t.peek(None):
-            case OperatorToken('exp'):
+            case OperatorToken('**'):
                 next(t)
                 r = parse_exp()
-                return BinOp("exp", l, r)
+                return BinOp("**", l, r)
             case _:
                 return l
 
@@ -101,16 +101,15 @@ def parse(s: str) -> AST:
             case FloatToken(v):
                 next(t)
                 return Float(v)
-            case KeywordToken('if'):
-                return parse_if
+
             case ParenToken('('):
                 next(t)
                 expr = parse_cmp()
                 expect(ParenToken(')'))
                 return Parentheses(expr)
-            case OperatorToken('neg'):
+            case OperatorToken('-'):
                 next(t)
                 val = parse_atom()
-                return UnOp('neg', val)
+                return UnOp('-', val)
 
     return parse_if()
