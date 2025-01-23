@@ -26,6 +26,7 @@ jobs:
             missing-function-docstring,  # Disable docstring checks for functions
             missing-class-docstring,     # Disable docstring checks for classes
             missing-module-docstring     # Disable docstring checks for modules
+            " > .pylintrc
     - name: Analysing the code with pylint
       run: |
         pylint $(git ls-files '*.py')
