@@ -1,5 +1,5 @@
 from top import e
-from parsers import parse, ParseError
+from compilers.parser import parse, ParseError
 
 # Successful test cases
 tests_ok = [
