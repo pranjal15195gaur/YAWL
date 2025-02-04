@@ -86,5 +86,3 @@ def lex(s: str) -> Iterator[Token]:
             else:
                 yield OperatorToken(s[i])
                 i += 1
-
-
