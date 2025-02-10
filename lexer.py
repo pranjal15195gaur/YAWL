@@ -1,3 +1,4 @@
+# lexer.py
 from collections.abc import Iterator
 from dataclasses import dataclass
 
@@ -24,7 +25,7 @@ class KeywordToken(Token):
 class ParenToken(Token):
     w: str
 
-# NEW: A token for identifiers (variable names)
+# NEW: Token for identifiers (variable names)
 @dataclass
 class IdentifierToken(Token):
     name: str
@@ -32,12 +33,14 @@ class IdentifierToken(Token):
 def lex(s: str) -> Iterator[Token]:
     i = 0
     while True:
+        # Skip whitespace
         while i < len(s) and s[i].isspace():
             i += 1
 
         if i == len(s):
             return
 
+        # Numbers (integer or float)
         if s[i].isdigit():
             t = s[i]
             i += 1
@@ -45,21 +48,22 @@ def lex(s: str) -> Iterator[Token]:
             isValid = True
             while i < len(s) and (s[i].isdigit() or s[i] == '.'):
                 if s[i] == '.':
-                    if isFloat: 
+                    if isFloat:
                         isValid = False
                     isFloat = True
                 t += s[i]
                 i += 1
 
             if not isValid:
-                raise ValueError('Invalid number token found :- {}'.format(t))
+                raise ValueError(f"Invalid number token found: {t}")
 
             if isFloat:
                 yield FloatToken(t)
             else:
                 yield IntToken(t)
 
-        elif s[i].isalpha() or s[i] == '_':  # allow identifiers to start with a letter or underscore
+        # Identifiers (variable names) and keywords
+        elif s[i].isalpha() or s[i] == '_':
             t = s[i]
             i += 1
             while i < len(s) and (s[i].isalnum() or s[i] == '_'):
@@ -86,8 +90,13 @@ def lex(s: str) -> Iterator[Token]:
             i += 1
             yield OperatorToken('}')
 
+        # NEW: Semicolon for statement separation
+        elif s[i] == ';':
+            i += 1
+            yield OperatorToken(';')
+
+        # Operators (including two-character operators)
         elif s[i] in '+-*/<>=!':
-            # Check for two-character operators first.
             if s[i:i+2] in ['<=', '>=', '==', '!=', '**']:
                 yield OperatorToken(s[i:i+2])
                 i += 2
@@ -96,4 +105,4 @@ def lex(s: str) -> Iterator[Token]:
                 i += 1
 
         else:
-            raise ValueError("Unexpected character: {}".format(s[i]))
+            raise ValueError(f"Unexpected character: {s[i]}")
