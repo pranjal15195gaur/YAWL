@@ -156,6 +156,8 @@ def parse(s: str) -> AST:
             # Consume a semicolon if one is present (as a statement separator)
             if tokens.peek(None) and isinstance(tokens.peek(None), OperatorToken) and tokens.peek(None).o == ';':
                 next(tokens)
+            else:
+                raise ParseError("Missing semicolon after expression or statement")
         return Program(statements)
 
     return parse_program()
