@@ -1,4 +1,5 @@
-from top import BinOp, UnOp, Float, Int, If, Parentheses, AST, Var, Assign
+# parser.py
+from top import BinOp, UnOp, Float, Int, If, Parentheses, AST, Var, Assign, Program
 from lexer import IntToken, FloatToken, OperatorToken, KeywordToken, ParenToken, IdentifierToken, Token, lex
 
 class ParseError(Exception):
@@ -6,20 +7,20 @@ class ParseError(Exception):
 
 def parse(s: str) -> AST:
     from more_itertools import peekable
-    t = peekable(lex(s))
+    tokens = peekable(lex(s))
 
     def expect(what: Token):
-        if t.peek(None) == what:
-            next(t)
+        if tokens.peek(None) == what:
+            next(tokens)
             return
-        raise ParseError(f"Expected {what}, but got {t.peek(None)}")
+        raise ParseError(f"Expected {what}, but got {tokens.peek(None)}")
 
     def parse_cmp():
         l = parse_add_sub()
-        match t.peek(None):
+        match tokens.peek(None):
             case OperatorToken('<') | OperatorToken('<=') | OperatorToken('>') | OperatorToken('>=') | OperatorToken('==') | OperatorToken('!='):
-                op = t.peek(None).o
-                next(t)
+                op = tokens.peek(None).o
+                next(tokens)
                 r = parse_add_sub()
                 return BinOp(op, l, r)
             case _:
@@ -28,12 +29,12 @@ def parse(s: str) -> AST:
     def parse_add_sub():
         ast = parse_mul_div()
         while True:
-            match t.peek(None):
+            match tokens.peek(None):
                 case OperatorToken('+'):
-                    next(t)
+                    next(tokens)
                     ast = BinOp('+', ast, parse_mul_div())
                 case OperatorToken('-'):
-                    next(t)
+                    next(tokens)
                     ast = BinOp('-', ast, parse_mul_div())
                 case _:
                     return ast
@@ -41,30 +42,30 @@ def parse(s: str) -> AST:
     def parse_mul_div():
         ast = parse_exp()
         while True:
-            match t.peek(None):
+            match tokens.peek(None):
                 case OperatorToken('*'):
-                    next(t)
-                    ast = BinOp("*", ast, parse_exp())
+                    next(tokens)
+                    ast = BinOp('*', ast, parse_exp())
                 case OperatorToken('/'):
-                    next(t)
-                    ast = BinOp("/", ast, parse_exp())
+                    next(tokens)
+                    ast = BinOp('/', ast, parse_exp())
                 case _:
                     return ast
 
     def parse_exp():
         l = parse_if()
-        match t.peek(None):
+        match tokens.peek(None):
             case OperatorToken('**'):
-                next(t)
+                next(tokens)
                 r = parse_if()
                 return BinOp("**", l, r)
             case _:
                 return l
 
     def parse_if():
-        if t.peek(None) != KeywordToken("if"):
+        if tokens.peek(None) != KeywordToken("if"):
             return parse_atom()
-        next(t)  # consume "if"
+        next(tokens)  # consume "if"
         cond = parse_cmp()
         if cond is None:
             raise ParseError("Missing condition after 'if'")
@@ -80,10 +81,10 @@ def parse(s: str) -> AST:
 
         elseif_branches = []
         while True:
-            if t.peek(None) == KeywordToken("else"):
-                next(t)  # consume "else"
-                if t.peek(None) == KeywordToken("if"):
-                    next(t)  # consume "if"
+            if tokens.peek(None) == KeywordToken("else"):
+                next(tokens)  # consume "else"
+                if tokens.peek(None) == KeywordToken("if"):
+                    next(tokens)  # consume "if"
                     elseif_cond = parse_cmp()
                     if elseif_cond is None:
                         raise ParseError("Missing condition after 'else if'")
@@ -112,38 +113,49 @@ def parse(s: str) -> AST:
                 return If(cond, then_expr, elseif_branches, None)
 
     def parse_atom():
-        match t.peek(None):
+        match tokens.peek(None):
             case IntToken(v):
-                next(t)
+                next(tokens)
                 return Int(v)
             case FloatToken(v):
-                next(t)
+                next(tokens)
                 return Float(v)
             case IdentifierToken(name):
-                next(t)
+                next(tokens)
                 return Var(name)
             case ParenToken('('):
-                next(t)
-                # Allow assignments inside parentheses by calling the top production.
+                next(tokens)
+                # Allow assignments inside parentheses
                 expr = parse_assignment()
                 expect(ParenToken(')'))
                 return Parentheses(expr)
             case OperatorToken('-'):
-                next(t)
+                next(tokens)
                 val = parse_atom()
                 return UnOp('-', val)
             case KeywordToken("if"):
                 return parse_if()
             case _:
-                raise ParseError("Unexpected token: {}".format(t.peek(None)))
+                raise ParseError(f"Unexpected token: {tokens.peek(None)}")
 
-    # New production: assignment (right–associative and lowest precedence)
+    # Assignment production (right-associative)
     def parse_assignment():
         left = parse_cmp()
-        if isinstance(left, Var) and t.peek(None) == OperatorToken('='):
-            next(t)  # consume '='
+        if isinstance(left, Var) and tokens.peek(None) == OperatorToken('='):
+            next(tokens)  # consume '='
             right = parse_assignment()
             return Assign(left.name, right)
         return left
 
-    return parse_assignment()
+    # Top-level production: a program is a sequence of statements
+    def parse_program():
+        statements = []
+        while tokens.peek(None) is not None:
+            stmt = parse_assignment()
+            statements.append(stmt)
+            # Consume a semicolon if one is present (as a statement separator)
+            if tokens.peek(None) and isinstance(tokens.peek(None), OperatorToken) and tokens.peek(None).o == ';':
+                next(tokens)
+        return Program(statements)
+
+    return parse_program()
