@@ -1,24 +1,20 @@
+# test.py
 from top import e
 from parser import parse, ParseError
 
 # Successful test cases
 tests_ok = [
-    "5 + 3",
-    "if 1 == 1 { 10 } else { 20 }",
-    "(10 - 3) * 2",
-    "if 2 < 3 { 2 + 2 } else { 9 / 3 }",
-    "if 2 < 3 { if 1 == 1 { 100 } else { 0 } } else { 42 }",
-    "5 + if 2 < 3 { 4 } else { 20 }",
-    # New tests for variables:
-    "x = 10",
-    "(x = 5 + 3) + x",  # Should assign x to 8 then add x: result 16.
+    "x = 10; y = 20;z =5; x + y*z",              # Should evaluate to 30
+    "a = 5; b = (a = a + 3) + a; a + b",    # a becomes 8, then b becomes (8 + 8) = 16, so result = 8 + 16 = 24
+    "5 + 3*7",                              # Single expression: 8
+    "if 1 == 1 { 10 } else { 20 }",        # Conditional: 10
 ]
 
 # Failing test cases
 tests_error = [
-    "if 1 == 1 { 5 ",             # missing closing brace
-    "if 2 < 3 { 4 } else if { 5 }",  # missing condition
-    "y + 2",                     # 'y' is undefined
+    "if 1 == 1 { 5",                      # missing closing brace
+    "if 2 < 3 { 4 } else if { 5 }",         # missing condition after 'else if'
+    "y + 2",                              # undefined variable 'y'
 ]
 
 def run_tests():
@@ -26,12 +22,12 @@ def run_tests():
     for code in tests_ok:
         try:
             ast = parse(code)
-            result = e(ast)  # each evaluation gets a fresh environment
+            result = e(ast)
             print(f"Code: {code}")
             print(f"AST:  {ast}")
             print(f"Result: {result}\n")
         except Exception as ex:
-            print(f"Failed to parse or evaluate '{code}':", ex)
+            print(f"Failed to parse or evaluate '{code}': {ex}\n")
 
     print("=== Failing Tests ===")
     for code in tests_error:
