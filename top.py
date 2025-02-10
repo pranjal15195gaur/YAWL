@@ -1,7 +1,13 @@
+# top.py
 from dataclasses import dataclass
 
 class AST:
     pass
+
+# Top-level program node: holds a list of statements.
+@dataclass
+class Program(AST):
+    statements: list[AST]
 
 @dataclass
 class BinOp(AST):
@@ -33,22 +39,27 @@ class If(AST):
     elseif_branches: list[tuple[AST, AST]]
     elsee: AST
 
-# NEW: AST node for a variable reference
+# Variable reference node
 @dataclass
 class Var(AST):
     name: str
 
-# NEW: AST node for an assignment expression
+# Assignment node (only allowed when the left side is a variable)
 @dataclass
 class Assign(AST):
     name: str
     value: AST
 
-# The evaluator now takes an optional environment dictionary.
+# Evaluator: evaluates the AST in an environment (a dictionary)
 def e(tree: AST, env=None):
     if env is None:
         env = {}
     match tree:
+        case Program(statements):
+            result = None
+            for stmt in statements:
+                result = e(stmt, env)
+            return result
         case Int(v):
             return int(v)
         case Float(v):
@@ -63,34 +74,27 @@ def e(tree: AST, env=None):
             env[name] = val
             return val
         case UnOp("-", expp):
-            return -1 * e(expp, env)
+            return -e(expp, env)
         case BinOp(op, l, r):
             left_val = e(l, env)
             right_val = e(r, env)
             match op:
                 case "**": return left_val ** right_val
-                case "*": return left_val * right_val
-                case "/": return left_val / right_val
-                case "+": return left_val + right_val
-                case "-": return left_val - right_val
-                case "<": return left_val < right_val
+                case "*":  return left_val * right_val
+                case "/":  return left_val / right_val
+                case "+":  return left_val + right_val
+                case "-":  return left_val - right_val
+                case "<":  return left_val < right_val
                 case "<=": return left_val <= right_val
-                case ">": return left_val > right_val
+                case ">":  return left_val > right_val
                 case ">=": return left_val >= right_val
                 case "==": return left_val == right_val
                 case "!=": return left_val != right_val
-                case "=":  # Should not occur because assignment is handled by the Assign node.
-                    raise ValueError("Assignment operator should be handled by an Assign node")
                 case _:
                     raise ValueError(f"Unsupported binary operator: {op}")
         case Parentheses(expp):
             return e(expp, env)
         case If(cond, then, elseif_branches, elsee):
-            if cond is None:
-                raise ValueError("Condition missing in 'if' statement")
-            for elseif_cond, elseif_then in elseif_branches:
-                if elseif_cond is None:
-                    raise ValueError("Condition missing in 'elseif' statement")
             if e(cond, env):
                 return e(then, env)
             for elseif_cond, elseif_then in elseif_branches:
