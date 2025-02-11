@@ -73,6 +73,18 @@ class Assignment(AST):
 class Program(AST):
     statements: list[AST]
 
+@dataclass
+class For(AST):
+    init: AST
+    condition: AST
+    increment: AST
+    body: AST
+
+@dataclass
+class While(AST):
+    condition: AST
+    body: AST
+
 def e(tree: AST, env=None) -> int:
     if env is None:
         env = Environment()
@@ -134,5 +146,21 @@ def e(tree: AST, env=None) -> int:
                 # New child environment for else block
                 return e(elsee, Environment(env))
             return None
+        case For(init, condition, increment, body):
+            # Evaluate initialization in current env
+            e(init, env)
+            result = None
+            # Loop while condition is true
+            while e(condition, env):
+                # Execute body in a new child environment for static scoping
+                result = e(body, Environment(env))
+                # Execute increment in current env
+                e(increment, env)
+            return result
+        case While(condition, body):
+            result = None
+            while e(condition, env):
+                result = e(body, Environment(env))
+            return result
         case _:
             raise ValueError("Unsupported node type")

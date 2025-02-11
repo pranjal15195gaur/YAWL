@@ -14,7 +14,9 @@ class TestRunTests(unittest.TestCase):
             ("5 + 3; 2 * 3", 6),                           # multi-statement; result from last statement (6)
             ("var x = 10; x + 5", 15),                      # variable declaration & usage (15)
             ("var a = 2; var b = a; a = 6;a + b", 8),            # using multiple variables (4)
-            ("var a = 2; var b = 3; var c = a * b; c + 1", 7)  # chained variable declarations (7)
+            ("var a = 2; var b = 3; var c = a * b; c + 1", 7),  # chained variable declarations (7)
+            ("var x = 0; while ( x < 3 ) { x = x + 1 }; x", 3),  # while loop test
+            ("var sum = 0; for ( var i = 0; i < 3; i = i + 1 ) { sum = sum + i; i = i + 1; }; sum", 2),  # for loop summation
         ]
         for code, expected in tests_ok:
             with self.subTest(code=code):

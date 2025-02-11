@@ -1,4 +1,4 @@
-from top import BinOp, UnOp, Float, Int, If, Parentheses, Program, VarDecl, VarReference, Assignment, AST
+from top import BinOp, UnOp, Float, Int, If, Parentheses, Program, VarDecl, VarReference, Assignment, AST, For, While
 from lexer import IntToken, FloatToken, OperatorToken, KeywordToken, ParenToken, Token, lex
 
 class ParseError(Exception):
@@ -130,29 +130,82 @@ def parse(s: str) -> AST:
                 next(t)
                 return VarReference(x)
         raise ParseError("Unexpected token in atom")
-
+    
+    # New helper to parse a block of statements enclosed in '{' and '}'
+    def parse_block():
+        try:
+            expect(OperatorToken('{'))
+        except ParseError:
+            raise ParseError("Expected '{' at beginning of block")
+        statements = []
+        while t.peek(None) is not None and t.peek(None) != OperatorToken('}'):
+            statements.append(parse_statement())
+            if t.peek(None) == OperatorToken(';'):
+                next(t)
+        try:
+            expect(OperatorToken('}'))
+        except ParseError:
+            raise ParseError("Missing closing '}' after block")
+        return Program(statements) if len(statements) > 1 else statements[0]
+    
     def parse_statement():
-        if t.peek(None) == KeywordToken("var"):
-            next(t)  # consume "var"
-            token = t.peek(None)
-            if not (isinstance(token, KeywordToken) and token.w not in ["if", "else", "var"]):
-                raise ParseError("Expected variable name after 'var'")
-            var_name = token.w
-            next(t)
-            try:
-                expect(OperatorToken('='))
-            except ParseError:
-                raise ParseError("Expected '=' after variable name in declaration")
-            expr = parse_cmp()
-            return VarDecl(var_name, expr)
-        else:
-            expr = parse_cmp()
-            # Check for assignment if left-hand side is a variable reference.
-            if isinstance(expr, VarReference) and t.peek(None) == OperatorToken('='):
-                next(t)  # consume '='
-                rhs = parse_cmp()
-                return Assignment(expr.name, rhs)
-            return expr
+        match t.peek(None):
+            case KeywordToken("for"):
+                next(t)  # consume "for"
+                try:
+                    expect(ParenToken('('))
+                except ParseError:
+                    raise ParseError("Expected '(' after 'for'")
+                init = parse_statement()  # allow var-decl/assignment in initialization
+                try:
+                    expect(OperatorToken(';'))
+                except ParseError:
+                    raise ParseError("Expected ';' after for-loop initializer")
+                condition = parse_cmp()  # condition must be an expression
+                try:
+                    expect(OperatorToken(';'))
+                except ParseError:
+                    raise ParseError("Expected ';' after for-loop condition")
+                increment = parse_statement()  # allow assignment in increment
+                try:
+                    expect(ParenToken(')'))
+                except ParseError:
+                    raise ParseError("Expected ')' after for-loop increment")
+                body = parse_block()  # use block parser for loop body
+                return For(init, condition, increment, body)
+            case KeywordToken("while"):
+                next(t)  # consume "while"
+                try:
+                    expect(ParenToken('('))
+                except ParseError:
+                    raise ParseError("Expected '(' after 'while'")
+                condition = parse_cmp()
+                try:
+                    expect(ParenToken(')'))
+                except ParseError:
+                    raise ParseError("Expected ')' after while-loop condition")
+                body = parse_block()  # use block parser for loop body
+                return While(condition, body)
+            case KeywordToken("var"):
+                next(t)  # consume "var"
+                token = t.peek(None)
+                if not (isinstance(token, KeywordToken) and token.w not in ["if", "else", "var", "for", "while"]):
+                    raise ParseError("Expected variable name after 'var'")
+                var_name = token.w
+                next(t)
+                try:
+                    expect(OperatorToken('='))
+                except ParseError:
+                    raise ParseError("Expected '=' after variable name in declaration")
+                expr = parse_cmp()
+                return VarDecl(var_name, expr)
+            case _:
+                expr = parse_cmp()
+                if isinstance(expr, VarReference) and t.peek(None) == OperatorToken('='):
+                    next(t)  # consume '='
+                    rhs = parse_cmp()
+                    return Assignment(expr.name, rhs)
+                return expr
 
     def parse_program():
         statements = []
