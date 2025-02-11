@@ -107,5 +107,4 @@ def run_tests():
     unittest.main(verbosity=2)
 
 if __name__ == "__main__":
-    problem_by_TA()
     run_tests()
