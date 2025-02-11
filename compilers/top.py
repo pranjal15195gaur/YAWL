@@ -85,6 +85,10 @@ class While(AST):
     condition: AST
     body: AST
 
+@dataclass
+class Print(AST):
+    expr: AST
+
 def e(tree: AST, env=None) -> int:
     if env is None:
         env = Environment()
@@ -162,5 +166,9 @@ def e(tree: AST, env=None) -> int:
             while e(condition, env):
                 result = e(body, Environment(env))
             return result
+        case Print(expr):
+            value = e(expr, env)
+            print(value)
+            return value
         case _:
             raise ValueError("Unsupported node type")

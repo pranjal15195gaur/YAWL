@@ -1,4 +1,4 @@
-from top import BinOp, UnOp, Float, Int, If, Parentheses, Program, VarDecl, VarReference, Assignment, AST, For, While
+from top import BinOp, UnOp, Float, Int, If, Parentheses, Program, VarDecl, VarReference, Assignment, AST, For, While, Print
 from lexer import IntToken, FloatToken, OperatorToken, KeywordToken, ParenToken, Token, lex
 
 class ParseError(Exception):
@@ -150,6 +150,18 @@ def parse(s: str) -> AST:
     
     def parse_statement():
         match t.peek(None):
+            case KeywordToken("print"):
+                next(t)  # consume "print"
+                try:
+                    expect(ParenToken('('))
+                except ParseError:
+                    raise ParseError("Expected '(' after 'print'")
+                expr = parse_cmp()
+                try:
+                    expect(ParenToken(')'))
+                except ParseError:
+                    raise ParseError("Expected ')' after print argument")
+                return Print(expr)
             case KeywordToken("for"):
                 next(t)  # consume "for"
                 try:

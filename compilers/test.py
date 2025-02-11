@@ -45,6 +45,34 @@ class TestRunTests(unittest.TestCase):
                         ast = parse(code)
                         e(ast)
 
+    def test_print(self):
+        import io
+        from contextlib import redirect_stdout
+        tests_print = [
+            ("print(5+5)", "10\n", 10),
+            ("var x = 42; print(x)", "42\n", 42),
+        ]
+        for code, expected_output, expected_value in tests_print:
+            with self.subTest(code=code):
+                f = io.StringIO()
+                with redirect_stdout(f):
+                    ast = parse(code)
+                    result = e(ast)
+                output = f.getvalue()
+                self.assertEqual(output, expected_output)
+                self.assertEqual(result, expected_value)
+
+    def test_project_euler(self):
+        # Project Euler problem 1
+        code = "var ans = 0; for (var i = 0; i < 1000; i = i + 1) { if (i % 3 == 0 || i % 5 == 0) { ans = ans + i; }; }; ans"
+        
+        with self.subTest(code=code):
+            ast = parse(code)
+            result = e(ast)
+            self.assertEqual(result, 233168)
+
+
+
 def run_tests():
     unittest.main(verbosity=20)
 

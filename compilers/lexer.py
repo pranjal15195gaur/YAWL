@@ -90,3 +90,6 @@ def lex(s: str) -> Iterator[Token]:
         elif s[i] == ';':
             i += 1
             yield OperatorToken(';')
+
+        else:
+            raise ValueError('Unexpected character found :- {}'.format(s[i]))
