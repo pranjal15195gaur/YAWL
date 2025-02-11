@@ -1,46 +1,50 @@
 from top import e
-from compilers.parser import parse, ParseError
+from parser import parse, ParseError
+import unittest
 
-# Successful test cases
-tests_ok = [
-    "5 + 3",
-    "if 1 == 1 { 10 } else { 20 }",
-    "(10 - 3) * 2",
-    "if 2 < 3 { 2 + 2 } else { 9 / 3 }",
-    "if 2 < 3 { if 1 == 1 { 100 } else { 0 } } else { 42 }",
+class TestRunTests(unittest.TestCase):
+    def test_successful_tests(self):
+        tests_ok = [
+            ("5 + 3", 8),                                  # simple arithmetic
+            ("if 1 == 1 { 10 } else { 20 }", 10),           # if-else expression (true branch)
+            ("(10 - 3) * 2", 14),                           # using parentheses
+            ("if 2 < 3 { 2 + 2 } else { 9 / 3 }", 4),      # if expression (true branch)
+            ("if 2 < 3 { if 1 == 1 { 100 } else { 0 } } else { 42 }", 100),  # nested if
+            ("5 + if 2 < 3 { 4 } else { 20 }", 9),         # if expression inside binary op
+            ("5 + 3; 2 * 3", 6),                           # multi-statement; result from last statement (6)
+            ("var x = 10; x + 5", 15),                      # variable declaration & usage (15)
+            ("var a = 2; var b = a; a = 6;a + b", 8),            # using multiple variables (4)
+            ("var a = 2; var b = 3; var c = a * b; c + 1", 7)  # chained variable declarations (7)
+        ]
+        for code, expected in tests_ok:
+            with self.subTest(code=code):
+                try:
+                    ast = parse(code)
+                    result = e(ast)
+                    self.assertEqual(result, expected)
+                except Exception as ex:
+                    self.fail(f"Test failed for code: {code}\nError: {ex}")
 
-    "5 + if 2 < 3 { 4 } else { 20 }",
-
-]
-
-# Failing test cases
-tests_error = [
-    "if 1 == 1 { 5 ",            # missing closing brace
-    "if 2 < 3 { 4 } else if { 5 }" # missing condition
-]
+    def test_failing_tests(self):
+        tests_error = [
+            "if 1 == 1 { 5",                          # missing closing brace
+            "if 2 < 3 { 4 } else if { 5 }",           # missing condition after 'else if'
+            "var x = 10 x + 5",                       # missing semicolon between statements
+            "x + 5"                                   # using undefined variable
+        ]
+        for code in tests_error:
+            with self.subTest(code=code):
+                if code == "x + 5":
+                    with self.assertRaises(ValueError):
+                        ast = parse(code)
+                        e(ast)
+                else:
+                    with self.assertRaises(ParseError):
+                        ast = parse(code)
+                        e(ast)
 
 def run_tests():
-    print("=== Successful Tests ===")
-    for code in tests_ok:
-        try:
-            ast = parse(code)
-            print(f"Code: {code}")
-            print(f"AST:  {ast}")
-            print(f"Result: {e(ast)}\n")
-        except Exception as ex:
-            print(f"Failed to parse or evaluate '{code}':", ex)
-
-    print("=== Failing Tests ===")
-    for code in tests_error:
-        try:
-            ast = parse(code)
-            print(f"Code: {code}")
-            print(f"AST:  {ast}")
-            print(f"Result: {e(ast)} (Unexpected success)\n")
-        except ParseError as perr:
-            print(f"ParseError for '{code}': {perr}\n")
-        except Exception as ex:
-            print(f"Error for '{code}': {ex}\n")
+    unittest.main(verbosity=20)
 
 if __name__ == "__main__":
     run_tests()

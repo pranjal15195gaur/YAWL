@@ -1,4 +1,4 @@
-from top import BinOp, UnOp, Float, Int, If, Parentheses, AST
+from top import BinOp, UnOp, Float, Int, If, Parentheses, Program, VarDecl, VarReference, Assignment, AST
 from lexer import IntToken, FloatToken, OperatorToken, KeywordToken, ParenToken, Token, lex
 
 class ParseError(Exception):
@@ -21,7 +21,7 @@ def parse(s: str) -> AST:
                 op = t.peek(None).o
                 next(t)
                 r = parse_add_sub()
-                return BinOp(op, l, r) 
+                return BinOp(op, l, r)
             case _:
                 return l
 
@@ -36,7 +36,8 @@ def parse(s: str) -> AST:
                     next(t)
                     ast = BinOp('-', ast, parse_mul_div())
                 case _:
-                    return ast
+                    break
+        return ast
 
     def parse_mul_div():
         ast = parse_exp()
@@ -49,7 +50,8 @@ def parse(s: str) -> AST:
                     next(t)
                     ast = BinOp("/", ast, parse_exp())
                 case _:
-                    return ast
+                    break
+        return ast
 
     def parse_exp():
         l = parse_if()
@@ -64,7 +66,7 @@ def parse(s: str) -> AST:
     def parse_if():
         if t.peek(None) != KeywordToken("if"):
             return parse_atom()
-        next(t)  # consume KeywordToken("if")
+        next(t)  # consume "if"
         cond = parse_cmp()
         if cond is None:
             raise ParseError("Missing condition after 'if'")
@@ -77,40 +79,37 @@ def parse(s: str) -> AST:
             expect(OperatorToken('}'))
         except ParseError:
             raise ParseError("Missing closing '}' after 'if' block")
-
         elseif_branches = []
-        while True:
-            if t.peek(None) == KeywordToken("else"):
-                next(t)  # consume "else"
-                if t.peek(None) == KeywordToken("if"):
-                    next(t)  # consume "if"
-                    elseif_cond = parse_cmp()
-                    if elseif_cond is None:
-                        raise ParseError("Missing condition after 'else if'")
-                    try:
-                        expect(OperatorToken('{'))
-                    except ParseError:
-                        raise ParseError("Expected '{' after 'else if' condition")
-                    elseif_then = parse_cmp()
-                    try:
-                        expect(OperatorToken('}'))
-                    except ParseError:
-                        raise ParseError("Missing closing '}' after 'else if' block")
-                    elseif_branches.append((elseif_cond, elseif_then))
-                else:
-                    try:
-                        expect(OperatorToken('{'))
-                    except ParseError:
-                        raise ParseError("Expected '{' after 'else'")
-                    else_expr = parse_cmp()
-                    try:
-                        expect(OperatorToken('}'))
-                    except ParseError:
-                        raise ParseError("Missing closing '}' after 'else' block")
-                    return If(cond, then_expr, elseif_branches, else_expr)
+        while t.peek(None) == KeywordToken("else"):
+            next(t)  # consume "else"
+            if t.peek(None) == KeywordToken("if"):
+                next(t)  # consume "if"
+                elseif_cond = parse_cmp()
+                if elseif_cond is None:
+                    raise ParseError("Missing condition after 'else if'")
+                try:
+                    expect(OperatorToken('{'))
+                except ParseError:
+                    raise ParseError("Expected '{' after 'else if' condition")
+                elseif_then = parse_cmp()
+                try:
+                    expect(OperatorToken('}'))
+                except ParseError:
+                    raise ParseError("Missing closing '}' after 'else if' block")
+                elseif_branches.append((elseif_cond, elseif_then))
             else:
-                return If(cond, then_expr, elseif_branches, None)
-
+                try:
+                    expect(OperatorToken('{'))
+                except ParseError:
+                    raise ParseError("Expected '{' after 'else'")
+                else_expr = parse_cmp()
+                try:
+                    expect(OperatorToken('}'))
+                except ParseError:
+                    raise ParseError("Missing closing '}' after 'else' block")
+                return If(cond, then_expr, elseif_branches, else_expr)
+        return If(cond, then_expr, elseif_branches, None)
+    
     def parse_atom():
         match t.peek(None):
             case IntToken(v):
@@ -119,18 +118,53 @@ def parse(s: str) -> AST:
             case FloatToken(v):
                 next(t)
                 return Float(v)
-
             case ParenToken('('):
                 next(t)
                 expr = parse_cmp()
                 expect(ParenToken(')'))
                 return Parentheses(expr)
-
             case OperatorToken('-'):
                 next(t)
-                val = parse_atom()
-                return UnOp('-', val)
-            case KeywordToken("if"):
-                return parse_if()
+                return UnOp('-', parse_atom())
+            case KeywordToken(x) if x not in ["if", "else", "var"]:
+                next(t)
+                return VarReference(x)
+        raise ParseError("Unexpected token in atom")
 
-    return parse_cmp()
+    def parse_statement():
+        if t.peek(None) == KeywordToken("var"):
+            next(t)  # consume "var"
+            token = t.peek(None)
+            if not (isinstance(token, KeywordToken) and token.w not in ["if", "else", "var"]):
+                raise ParseError("Expected variable name after 'var'")
+            var_name = token.w
+            next(t)
+            try:
+                expect(OperatorToken('='))
+            except ParseError:
+                raise ParseError("Expected '=' after variable name in declaration")
+            expr = parse_cmp()
+            return VarDecl(var_name, expr)
+        else:
+            expr = parse_cmp()
+            # Check for assignment if left-hand side is a variable reference.
+            if isinstance(expr, VarReference) and t.peek(None) == OperatorToken('='):
+                next(t)  # consume '='
+                rhs = parse_cmp()
+                return Assignment(expr.name, rhs)
+            return expr
+
+    def parse_program():
+        statements = []
+        while t.peek(None) is not None:
+            statements.append(parse_statement())
+            if t.peek(None) is not None:
+                # Enforce semicolon between statements
+                if t.peek(None) == OperatorToken(';'):
+                    next(t)
+                else:
+                    raise ParseError("Missing semicolon between statements")
+        return statements[0] if len(statements) == 1 else Program(statements)
+
+    result = parse_program()
+    return result

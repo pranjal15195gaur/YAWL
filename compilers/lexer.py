@@ -86,3 +86,7 @@ def lex(s: str) -> Iterator[Token]:
             else:
                 yield OperatorToken(s[i])
                 i += 1
+
+        elif s[i] == ';':
+            i += 1
+            yield OperatorToken(';')
