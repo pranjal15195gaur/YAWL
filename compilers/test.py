@@ -64,17 +64,48 @@ class TestRunTests(unittest.TestCase):
 
     def test_project_euler(self):
         # Project Euler problem 1
-        code = "var ans = 0; for (var i = 0; i < 1000; i = i + 1) { if (i % 3 == 0 || i % 5 == 0) { ans = ans + i; }; }; ans"
+        code = """  var ans = 0; 
+                    for (var i = 0; i < 1000; i = i + 1) {
+                        if (i % 3 == 0 or i % 5 == 0) { 
+                            ans = ans + i; 
+                        } 
+                    }; 
+                    ans
+               """
         
         with self.subTest(code=code):
             ast = parse(code)
             result = e(ast)
             self.assertEqual(result, 233168)
 
+        
+        # Project Euler problem 2
+
+        code =  """
+                var ans = 0;
+                var a = 0;
+                var b = 1;
+                while(b<4000000){
+                    var temp = a + b;
+                    if (temp%2==0){
+                        ans = ans + temp;
+                    }
+                    a = b;
+                    b = temp;
+                };
+
+                ans
+                """
+
+        with self.subTest(code=code):
+            ast = parse(code)
+            result = e(ast)
+            self.assertEqual(result, 4613732)
 
 
 def run_tests():
-    unittest.main(verbosity=20)
+    unittest.main(verbosity=2)
 
 if __name__ == "__main__":
+    problem_by_TA()
     run_tests()

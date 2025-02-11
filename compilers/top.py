@@ -122,6 +122,7 @@ def e(tree: AST, env=None) -> int:
                 case "**": return left_val ** right_val
                 case "*": return left_val * right_val
                 case "/": return left_val / right_val
+                case "%": return left_val % right_val       # support for modulo operator
                 case "+": return left_val + right_val
                 case "-": return left_val - right_val
                 case "<": return left_val < right_val
@@ -130,6 +131,8 @@ def e(tree: AST, env=None) -> int:
                 case ">=": return left_val >= right_val
                 case "==": return left_val == right_val
                 case "!=": return left_val != right_val
+                case "and": return (left_val and right_val)    # logical and
+                case "or": return (left_val or right_val)      # logical or
                 case _: raise ValueError(f"Unsupported binary operator: {op}")
         case Parentheses(expp): 
             return e(expp, env)

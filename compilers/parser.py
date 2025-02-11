@@ -14,7 +14,8 @@ def parse(s: str) -> AST:
             return
         raise ParseError
 
-    def parse_cmp():
+    # Rename existing parse_cmp to parse_comparison (handles arithmetic comparisons)
+    def parse_comparison():
         l = parse_add_sub()
         match t.peek(None):
             case OperatorToken('<') | OperatorToken('<=') | OperatorToken('>') | OperatorToken('>=') | OperatorToken('==') | OperatorToken('!='):
@@ -24,6 +25,24 @@ def parse(s: str) -> AST:
                 return BinOp(op, l, r)
             case _:
                 return l
+
+    # New helper: logical and has higher precedence than logical or.
+    def parse_logic_and():
+        expr = parse_comparison()
+        while t.peek(None) == KeywordToken("and"):
+            next(t)
+            right = parse_comparison()
+            expr = BinOp("and", expr, right)
+        return expr
+
+    # New helper: logical or, lowest precedence among logical operators.
+    def parse_logic_or():
+        expr = parse_logic_and()
+        while t.peek(None) == KeywordToken("or"):
+            next(t)
+            right = parse_logic_and()
+            expr = BinOp("or", expr, right)
+        return expr
 
     def parse_add_sub():
         ast = parse_mul_div()
@@ -43,12 +62,10 @@ def parse(s: str) -> AST:
         ast = parse_exp()
         while True:
             match t.peek(None):
-                case OperatorToken('*'):
+                case OperatorToken('*') | OperatorToken('/') | OperatorToken('%'):
+                    op = t.peek(None).o
                     next(t)
-                    ast = BinOp("*", ast, parse_exp())
-                case OperatorToken('/'):
-                    next(t)
-                    ast = BinOp("/", ast, parse_exp())
+                    ast = BinOp(op, ast, parse_exp())
                 case _:
                     break
         return ast
@@ -67,49 +84,21 @@ def parse(s: str) -> AST:
         if t.peek(None) != KeywordToken("if"):
             return parse_atom()
         next(t)  # consume "if"
-        cond = parse_cmp()
-        if cond is None:
-            raise ParseError("Missing condition after 'if'")
-        try:
-            expect(OperatorToken('{'))
-        except ParseError:
-            raise ParseError("Expected '{' after 'if' condition")
-        then_expr = parse_cmp()
-        try:
-            expect(OperatorToken('}'))
-        except ParseError:
-            raise ParseError("Missing closing '}' after 'if' block")
+        cond = parse_logic_or()           # use logical expression for condition
+        then_expr = parse_block()         # parse then block
         elseif_branches = []
         while t.peek(None) == KeywordToken("else"):
             next(t)  # consume "else"
             if t.peek(None) == KeywordToken("if"):
                 next(t)  # consume "if"
-                elseif_cond = parse_cmp()
-                if elseif_cond is None:
-                    raise ParseError("Missing condition after 'else if'")
-                try:
-                    expect(OperatorToken('{'))
-                except ParseError:
-                    raise ParseError("Expected '{' after 'else if' condition")
-                elseif_then = parse_cmp()
-                try:
-                    expect(OperatorToken('}'))
-                except ParseError:
-                    raise ParseError("Missing closing '}' after 'else if' block")
+                elseif_cond = parse_logic_or()
+                elseif_then = parse_block()
                 elseif_branches.append((elseif_cond, elseif_then))
             else:
-                try:
-                    expect(OperatorToken('{'))
-                except ParseError:
-                    raise ParseError("Expected '{' after 'else'")
-                else_expr = parse_cmp()
-                try:
-                    expect(OperatorToken('}'))
-                except ParseError:
-                    raise ParseError("Missing closing '}' after 'else' block")
+                else_expr = parse_block()
                 return If(cond, then_expr, elseif_branches, else_expr)
         return If(cond, then_expr, elseif_branches, None)
-    
+
     def parse_atom():
         match t.peek(None):
             case IntToken(v):
@@ -120,13 +109,13 @@ def parse(s: str) -> AST:
                 return Float(v)
             case ParenToken('('):
                 next(t)
-                expr = parse_cmp()
+                expr = parse_logic_or()      # use full expression in parentheses
                 expect(ParenToken(')'))
                 return Parentheses(expr)
             case OperatorToken('-'):
                 next(t)
                 return UnOp('-', parse_atom())
-            case KeywordToken(x) if x not in ["if", "else", "var"]:
+            case KeywordToken(x) if x not in ["if", "else", "var", "and", "or", "print", "for", "while"]:
                 next(t)
                 return VarReference(x)
         raise ParseError("Unexpected token in atom")
@@ -156,7 +145,7 @@ def parse(s: str) -> AST:
                     expect(ParenToken('('))
                 except ParseError:
                     raise ParseError("Expected '(' after 'print'")
-                expr = parse_cmp()
+                expr = parse_logic_or()
                 try:
                     expect(ParenToken(')'))
                 except ParseError:
@@ -173,7 +162,7 @@ def parse(s: str) -> AST:
                     expect(OperatorToken(';'))
                 except ParseError:
                     raise ParseError("Expected ';' after for-loop initializer")
-                condition = parse_cmp()  # condition must be an expression
+                condition = parse_logic_or()
                 try:
                     expect(OperatorToken(';'))
                 except ParseError:
@@ -191,7 +180,7 @@ def parse(s: str) -> AST:
                     expect(ParenToken('('))
                 except ParseError:
                     raise ParseError("Expected '(' after 'while'")
-                condition = parse_cmp()
+                condition = parse_logic_or()
                 try:
                     expect(ParenToken(')'))
                 except ParseError:
@@ -201,7 +190,7 @@ def parse(s: str) -> AST:
             case KeywordToken("var"):
                 next(t)  # consume "var"
                 token = t.peek(None)
-                if not (isinstance(token, KeywordToken) and token.w not in ["if", "else", "var", "for", "while"]):
+                if not (isinstance(token, KeywordToken) and token.w not in ["if", "else", "var", "for", "while", "and", "or", "print"]):
                     raise ParseError("Expected variable name after 'var'")
                 var_name = token.w
                 next(t)
@@ -209,13 +198,13 @@ def parse(s: str) -> AST:
                     expect(OperatorToken('='))
                 except ParseError:
                     raise ParseError("Expected '=' after variable name in declaration")
-                expr = parse_cmp()
+                expr = parse_logic_or()
                 return VarDecl(var_name, expr)
             case _:
-                expr = parse_cmp()
+                expr = parse_logic_or()
                 if isinstance(expr, VarReference) and t.peek(None) == OperatorToken('='):
                     next(t)  # consume '='
-                    rhs = parse_cmp()
+                    rhs = parse_logic_or()
                     return Assignment(expr.name, rhs)
                 return expr
 
