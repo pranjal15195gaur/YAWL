@@ -1,3 +1,4 @@
+# lexer.py
 from collections.abc import Iterator
 from dataclasses import dataclass
 
@@ -45,10 +46,13 @@ def lex(s: str) -> Iterator[Token]:
                 t += s[i]
                 i += 1
 
-            if not isValid: raise ValueError('Invalid number token found :- {}'.format(t))
+            if not isValid: 
+                raise ValueError('Invalid number token found :- {}'.format(t))
 
-            if isFloat: yield FloatToken(t)
-            else: yield IntToken(t)
+            if isFloat: 
+                yield FloatToken(t)
+            else: 
+                yield IntToken(t)
 
         elif s[i].isalpha():
             t = s[i]
@@ -61,7 +65,8 @@ def lex(s: str) -> Iterator[Token]:
                     if i < len(s) and s[i] == '{':
                         raise ValueError("Condition missing after '{}' keyword".format(t))
                     yield KeywordToken(t)
-                case _: yield KeywordToken(t)
+                case _:
+                    yield KeywordToken(t)
 
         elif s[i] == '(':
             i += 1
@@ -90,11 +95,22 @@ def lex(s: str) -> Iterator[Token]:
         elif s[i] == ';':
             i += 1
             yield OperatorToken(';')
-        elif s[i] == '%':                       # added modulo operator handling
+
+        elif s[i] == '%':  # modulo operator
             i += 1
             yield OperatorToken('%')
+
         elif s[i] == ',':
             i += 1
             yield OperatorToken(',')
+
+        elif s[i] == '[':
+            i += 1
+            yield OperatorToken('[')
+
+        elif s[i] == ']':
+            i += 1
+            yield OperatorToken(']')
+
         else:
             raise ValueError('Unexpected character found :- {}'.format(s[i]))

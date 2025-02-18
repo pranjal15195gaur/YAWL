@@ -94,6 +94,30 @@ class FunctionCall(AST):
     name: str
     args: list[AST]
 
+# New AST nodes for arrays
+@dataclass
+class ArrayLiteral(AST):
+    elements: list[AST]
+
+@dataclass
+class ArrayIndex(AST):
+    array: AST
+    index: AST
+
+@dataclass
+class FunctionDef(AST):
+    name: str
+    params: list[str]
+    body: AST
+
+# A helper to represent a user‐defined function (its parameter names, body, and the closure in which it was defined)
+@dataclass
+class UserFunction:
+    params: list[str]
+    body: AST
+    closure: Environment
+
+
 def e(tree: AST, env=None) -> int:
     if env is None:
         env = Environment()
@@ -101,7 +125,6 @@ def e(tree: AST, env=None) -> int:
     match tree:
         case Program(stmts):
             result = None
-            # Evaluate statements in the global environment
             for stmt in stmts:
                 result = e(stmt, env)
             return result
@@ -132,10 +155,10 @@ def e(tree: AST, env=None) -> int:
                 case "**": return left_val ** right_val
                 case "*": return left_val * right_val
                 case "/":
-                    if isinstance(left_val, int) and left_val%(right_val)==0 :
+                    if isinstance(left_val, int) and left_val % right_val == 0:
                         return left_val // right_val
                     return left_val / right_val
-                case "%": return left_val % right_val       # support for modulo operator
+                case "%": return left_val % right_val
                 case "+": return left_val + right_val
                 case "-": return left_val - right_val
                 case "<": return left_val < right_val
@@ -144,8 +167,8 @@ def e(tree: AST, env=None) -> int:
                 case ">=": return left_val >= right_val
                 case "==": return left_val == right_val
                 case "!=": return left_val != right_val
-                case "and": return (left_val and right_val)    # logical and
-                case "or": return (left_val or right_val)      # logical or
+                case "and": return (left_val and right_val)
+                case "or": return (left_val or right_val)
                 case _: raise ValueError(f"Unsupported binary operator: {op}")
 
         case Parentheses(expp): 
@@ -158,26 +181,19 @@ def e(tree: AST, env=None) -> int:
                 if elseif_cond is None:
                     raise ValueError("Condition missing in 'elseif' statement")
             if e(cond, env):
-                # Create a new static (child) environment for the then block
                 return e(then, Environment(env))
             for elseif_cond, elseif_then in elseif_branches:
                 if e(elseif_cond, env):
-                    # New child environment for elseif block
                     return e(elseif_then, Environment(env))
             if elsee is not None:
-                # New child environment for else block
                 return e(elsee, Environment(env))
             return None
 
         case For(init, condition, increment, body):
-            # Evaluate initialization in current env
             e(init, env)
             result = None
-            # Loop while condition is true
             while e(condition, env):
-                # Execute body in a new child environment for static scoping
                 result = e(body, Environment(env))
-                # Execute increment in current env
                 e(increment, env)
             return result
 
@@ -201,5 +217,18 @@ def e(tree: AST, env=None) -> int:
             else:
                 raise ValueError(f"Unknown function {name}")
 
+        # New evaluation rules for arrays
+        case ArrayLiteral(elements):
+            return [e(el, env) for el in elements]
+        case ArrayIndex(array, index):
+            arr = e(array, env)
+            idx = e(index, env)
+            if not isinstance(idx, int):
+                raise ValueError("Array index must be an integer")
+            # One-based indexing: adjust for Python's zero-based lists.
+            return arr[idx - 1]
+
+        
+                
         case _:
             raise ValueError("Unsupported node type")

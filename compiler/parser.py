@@ -1,4 +1,7 @@
-from top import BinOp, UnOp, Float, Int, If, Parentheses, Program, VarDecl, VarReference, Assignment, AST, For, While, Print, FunctionCall
+from top import (BinOp, UnOp, Float, Int, If, Parentheses, Program, VarDecl,
+                 VarReference, Assignment, AST, For, While, Print, 
+                 ArrayLiteral, ArrayIndex)
+
 from lexer import IntToken, FloatToken, OperatorToken, KeywordToken, ParenToken, Token, lex
 
 class ParseError(Exception):
@@ -103,18 +106,28 @@ def parse(s: str) -> AST:
         match t.peek(None):
             case IntToken(v):
                 next(t)
-                return Int(v)
+                node = Int(v)
             case FloatToken(v):
                 next(t)
-                return Float(v)
+                node = Float(v)
             case ParenToken('('):
                 next(t)
-                expr = parse_logic_or()      # use full expression in parentheses
+                node = parse_logic_or()      # full expression in parentheses
                 expect(ParenToken(')'))
-                return Parentheses(expr)
             case OperatorToken('-'):
                 next(t)
-                return UnOp('-', parse_atom())
+                node = UnOp('-', parse_atom())
+            case OperatorToken('['):
+                # Array literal
+                next(t)  # consume '['
+                elements = []
+                if t.peek(None) != OperatorToken(']'):
+                    elements.append(parse_logic_or())
+                    while t.peek(None) == OperatorToken(','):
+                        next(t)
+                        elements.append(parse_logic_or())
+                expect(OperatorToken(']'))
+                node = ArrayLiteral(elements)
             case KeywordToken(x) if x not in ["if", "else", "var", "and", "or", "print", "for", "while"]:
                 func_name = x
                 next(t)
@@ -130,9 +143,20 @@ def parse(s: str) -> AST:
                         expect(ParenToken(')'))
                     except ParseError:
                         raise ParseError("Unclosed parenthesis in function call")
-                    return FunctionCall(func_name, call_args)
-                return VarReference(func_name)
-        raise ParseError("Unexpected token in atom")
+                    node = FunctionCall(func_name, call_args)
+                else:
+                    node = VarReference(func_name)
+            case _:
+                raise ParseError("Unexpected token in atom")
+        
+        # Handle postfix array indexing: e.g. x[1] or [1,2,3][2]
+        while t.peek(None) == OperatorToken('['):
+            next(t)  # consume '['
+            index_expr = parse_logic_or()
+            expect(OperatorToken(']'))
+            node = ArrayIndex(node, index_expr)
+        return node
+
     
     # New helper to parse a block of statements enclosed in '{' and '}'
     def parse_block():
@@ -226,13 +250,14 @@ def parse(s: str) -> AST:
         statements = []
         while t.peek(None) is not None:
             statements.append(parse_statement())
-            if t.peek(None) is not None:
-                # Enforce semicolon between statements
-                if t.peek(None) == OperatorToken(';'):
-                    next(t)
-                else:
-                    raise ParseError("Missing semicolon between statements")
+            # Optionally consume a semicolon if present.
+            if t.peek(None) == OperatorToken(';'):
+                next(t)
         return statements[0] if len(statements) == 1 else Program(statements)
 
+
+
     result = parse_program()
+
+    
     return result
