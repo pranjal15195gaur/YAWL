@@ -1,6 +1,6 @@
 from top import (BinOp, UnOp, Float, Int, If, Parentheses, Program, VarDecl,
                  VarReference, Assignment, AST, For, While, Print, 
-                 ArrayLiteral, ArrayIndex)
+                 ArrayLiteral, ArrayIndex, FunctionCall, FunctionDef)
 
 from lexer import IntToken, FloatToken, OperatorToken, KeywordToken, ParenToken, Token, lex
 
@@ -177,6 +177,41 @@ def parse(s: str) -> AST:
     
     def parse_statement():
         match t.peek(None):
+            # --- New case for function definitions ---
+            case KeywordToken("def"):
+                next(t)  # consume "def"
+                token = t.peek(None)
+                if not (isinstance(token, KeywordToken) and token.w not in ["if", "else", "var", "for", "while", "and", "or", "print", "def"]):
+                    raise ParseError("Expected function name after 'def'")
+                func_name = token.w
+                next(t)
+                try:
+                    expect(ParenToken('('))
+                except ParseError:
+                    raise ParseError("Expected '(' after function name")
+                params = []
+                if t.peek(None) != ParenToken(')'):
+                    # At least one parameter
+                    token = t.peek(None)
+                    if not isinstance(token, KeywordToken):
+                        raise ParseError("Expected parameter name")
+                    params.append(token.w)
+                    next(t)
+                    while t.peek(None) == OperatorToken(','):
+                        next(t)
+                        token = t.peek(None)
+                        if not isinstance(token, KeywordToken):
+                            raise ParseError("Expected parameter name")
+                        params.append(token.w)
+                        next(t)
+                try:
+                    expect(ParenToken(')'))
+                except ParseError:
+                    raise ParseError("Expected ')' after parameter list")
+                body = parse_block()  # Reuse block parsing for the function body.
+                return FunctionDef(func_name, params, body)
+            
+
             case KeywordToken("print"):
                 next(t)  # consume "print"
                 try:

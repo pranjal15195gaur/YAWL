@@ -123,6 +123,13 @@ def e(tree: AST, env=None) -> int:
         env = Environment()
 
     match tree:
+
+        case FunctionDef(name, params, body):
+            uf = UserFunction(params, body, env)
+            env.declare(name, uf)
+            return uf
+        
+
         case Program(stmts):
             result = None
             for stmt in stmts:
@@ -210,7 +217,20 @@ def e(tree: AST, env=None) -> int:
 
         case FunctionCall(name, args):
             evaluated_args = [e(a, env) for a in args]
-            if name == "max":
+            # First, try to look up the function in the environment.
+            try:
+                func = env.lookup(name)
+            except ValueError:
+                func = None
+            if func is not None and isinstance(func, UserFunction):
+                if len(evaluated_args) != len(func.params):
+                    raise ValueError(f"Function {name} expects {len(func.params)} arguments, got {len(evaluated_args)}")
+                # Create a new environment for the function call
+                new_env = Environment(func.closure)
+                for param, arg in zip(func.params, evaluated_args):
+                    new_env.declare(param, arg)
+                return e(func.body, new_env)
+            elif name == "max":
                 return max(*evaluated_args)
             elif name == "min":
                 return min(*evaluated_args)
