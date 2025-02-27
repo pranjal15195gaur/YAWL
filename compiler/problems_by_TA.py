@@ -4,14 +4,23 @@ from parser import parse, ParseError
 def problem_by_TA():
     # Problem statement: Write the multiplication table of 17 till 15 terms
     code = """
-            def table(x) {
-                var i = 1;
-                while(i <= 15) {
-                    print(x * i);
-                    i = i + 1;
-                }
-            }
-            table(121);
+            def f(){
+                return 1;
+            };
+
+            def foo(){
+                print(f());
+            };
+
+            def bar(){
+                def f(){
+                    return 10;
+                };
+
+                foo();
+            };
+
+            bar();
            """
     try:
         ast = parse(code)

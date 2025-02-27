@@ -117,6 +117,14 @@ class UserFunction:
     body: AST
     closure: Environment
 
+@dataclass
+class Return(AST):
+    value: AST
+
+class ReturnException(Exception):
+    def __init__(self, value):
+        self.value = value
+
 
 def e(tree: AST, env=None) -> int:
     if env is None:
@@ -217,7 +225,6 @@ def e(tree: AST, env=None) -> int:
 
         case FunctionCall(name, args):
             evaluated_args = [e(a, env) for a in args]
-            # First, try to look up the function in the environment.
             try:
                 func = env.lookup(name)
             except ValueError:
@@ -225,17 +232,23 @@ def e(tree: AST, env=None) -> int:
             if func is not None and isinstance(func, UserFunction):
                 if len(evaluated_args) != len(func.params):
                     raise ValueError(f"Function {name} expects {len(func.params)} arguments, got {len(evaluated_args)}")
-                # Create a new environment for the function call
                 new_env = Environment(func.closure)
                 for param, arg in zip(func.params, evaluated_args):
                     new_env.declare(param, arg)
-                return e(func.body, new_env)
+                try:
+                    return e(func.body, new_env)
+                except ReturnException as re:
+                    return re.value
             elif name == "max":
                 return max(*evaluated_args)
             elif name == "min":
                 return min(*evaluated_args)
             else:
                 raise ValueError(f"Unknown function {name}")
+
+        case Return(expr):
+            # When a return is encountered, evaluate the expression and raise an exception to exit the function.
+            raise ReturnException(e(expr, env))
 
         # New evaluation rules for arrays
         case ArrayLiteral(elements):

@@ -1,6 +1,7 @@
 from top import (BinOp, UnOp, Float, Int, If, Parentheses, Program, VarDecl,
                  VarReference, Assignment, AST, For, While, Print, 
-                 ArrayLiteral, ArrayIndex, FunctionCall, FunctionDef)
+                 ArrayLiteral, ArrayIndex, FunctionCall, FunctionDef, Return)
+
 
 from lexer import IntToken, FloatToken, OperatorToken, KeywordToken, ParenToken, Token, lex
 
@@ -211,6 +212,10 @@ def parse(s: str) -> AST:
                 body = parse_block()  # Reuse block parsing for the function body.
                 return FunctionDef(func_name, params, body)
             
+            case KeywordToken("return"):
+                next(t)  # consume "return"
+                expr = parse_logic_or()  # parse the expression following 'return'
+                return Return(expr)
 
             case KeywordToken("print"):
                 next(t)  # consume "print"
